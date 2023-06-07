@@ -60,12 +60,13 @@ namespace ShowDelegates
         private static string funName(Type delegateType, MethodInfo info) =>
             string.Concat(new string[]
             {
+            info.IsPublic ? "Public " : "Private ",
             info.IsStatic ? "Static " : "",
-            delegateType.Name,
+            info.IsAbstract ? "Abstract " : "",
+            info.IsVirtual ? "Virtual " : "",
+            info.ReturnType.Name,
             " ",
             info.ToString().Substring(info.ToString().IndexOf(" ")).Replace("FrooxEngine.", ""),
-            " -> ",
-            info.ReturnType.Name
             });
 
         [HarmonyPatch(typeof(WorkerInspector))]
@@ -108,48 +109,63 @@ namespace ShowDelegates
                     {
                         Type delegteType = null;
                         var param = methodInfo.GetParameters();
-                        if (param.Length == 0)
+                        if(methodInfo.ReturnType == typeof(void))
                         {
-                            if (methodInfo.ReturnType == typeof(void)) delegteType = typeof(Action);
-                            else if (methodInfo.ReturnType == typeof(bool)) delegteType = typeof(Func<bool>);
+                            if (param.Length == 0) delegteType = typeof(Action);
+                            else delegteType = ActionType(param?.Length ?? 0).MakeGenericType(param.Types());
                         }
-                        else if (param.Length == 1)
+                        else
                         {
-                            Type parameterType = param[0].ParameterType;
-                            if (methodInfo.ReturnType == typeof(ModalOverlay) && parameterType == typeof(Slot)) delegteType = typeof(ModalOverlayConstructor);
-                            else if (methodInfo.ReturnType == typeof(bool) && parameterType == typeof(Worker)) delegteType = typeof(Predicate<Worker>);
-                            else if (methodInfo.ReturnType == typeof(bool) && parameterType == typeof(ICollider)) delegteType = typeof(Func<ICollider, bool>);
-                            else if (methodInfo.ReturnType == typeof(float3) && parameterType == typeof(RelayTouchSource)) delegteType = typeof(Func<RelayTouchSource, float3>);
-                            else if (methodInfo.ReturnType == typeof(TouchType) && parameterType == typeof(RelayTouchSource)) delegteType = typeof(Func<RelayTouchSource, TouchType>);
-                            else if (methodInfo.ReturnType == typeof(void)) delegteType = typeof(Action<>).MakeGenericType(param[0].ParameterType);
+                            Type[] types = new Type[param.Length + 1];
+                            for(int i = 0; i < param.Length; i++) types[i] = param[i].ParameterType;
+                            types[param.Length] = methodInfo.ReturnType;
+                            delegteType = FuncType(param?.Length ?? 0).MakeGenericType(types);
                         }
-                        else if (param.Length == 2)
-                        {
-                            if (methodInfo.ReturnType == typeof(void))
-                            {
-                                if (param[0].ParameterType == typeof(ITouchable) && param[1].ParameterType == typeof(TouchEventInfo)) delegteType = typeof(TouchEvent);
-                                else if (param[0].ParameterType == typeof(DevCreateNewForm) && param[1].ParameterType == typeof(Slot)) delegteType = typeof(ItemCreated);
-                                else if (param[0].ParameterType == typeof(Display) && param[1].ParameterType == typeof(Slot)) delegteType = typeof(DesktopDisplayLayout.DisplayItemHandler);
-                                else if (param[0].ParameterType == typeof(SlotGizmo) && param[1].ParameterType == typeof(SlotGizmo)) delegteType = typeof(SlotGizmo.SlotGizmoReplacement);
-                                else if (param[0].ParameterType == typeof(IButton) && param[1].ParameterType == typeof(ButtonEventData)) delegteType = typeof(ButtonEventHandler);
-                                else if (param[0].ParameterType == typeof(WorldOrb) && param[1].ParameterType == typeof(TouchEventInfo)) delegteType = typeof(Action<WorldOrb, TouchEventInfo>);
-                                else if (param[0].ParameterType == typeof(ValueStream<float3>) && param[1].ParameterType == typeof(int)) delegteType = typeof(Action<ValueStream<float3>, int>);
-                            }
-                            else if (methodInfo.ReturnType == typeof(bool))
-                            {
-                                if (param[0].ParameterType == typeof(ICollider) && param[1].ParameterType == typeof(int)) delegteType = typeof(Func<ICollider, int, bool>);
-                                else if (param[0].ParameterType == typeof(Snapper) && param[1].ParameterType == typeof(SnapTarget)) delegteType = typeof(SnapperFilter);
-                                else if (param[0].ParameterType == typeof(string) && param[1].ParameterType == typeof(string)) delegteType = typeof(BrowserCreateDirectoryDialog.CreateHandler);
-                                else if (param[0].ParameterType == typeof(IGrabbable) && param[1].ParameterType == typeof(Grabber)) delegteType = typeof(GrabCheck);
-                            }
-                        }
-                        else if (param.Length == 3 && methodInfo.ReturnType == typeof(void) && param[0].ParameterType == typeof(IButton) && param[1].ParameterType == typeof(ButtonEventData)) delegteType = typeof(ButtonEventHandler<>).MakeGenericType(param[2].ParameterType);
 
                         if (delegteType != null) GenerateGenericDelegateProxy(ui, funName(delegteType, methodInfo), methodInfo.CreateDelegate(delegteType, methodInfo.IsStatic ? null : worker), delegteType);
                     }
                     ui.NestOut();
                 }
             }
+            static Type ActionType(int argCount) => argCount switch
+            {
+                1 => typeof(Action<>),
+                2 => typeof(Action<,>),
+                3 => typeof(Action<,,>),
+                4 => typeof(Action<,,,>),
+                5 => typeof(Action<,,,,>),
+                6 => typeof(Action<,,,,,>),
+                7 => typeof(Action<,,,,,,>),
+                8 => typeof(Action<,,,,,,,>),
+                9 => typeof(Action<,,,,,,,,>),
+                10 => typeof(Action<,,,,,,,,,>),
+                11 => typeof(Action<,,,,,,,,,,>),
+                12 => typeof(Action<,,,,,,,,,,,>),
+                13 => typeof(Action<,,,,,,,,,,,,>),
+                14 => typeof(Action<,,,,,,,,,,,,,>),
+                15 => typeof(Action<,,,,,,,,,,,,,,>),
+                16 => typeof(Action<,,,,,,,,,,,,,,,>)
+            };
+            static Type FuncType(int argCount) => argCount switch
+            {
+                0 => typeof(Func<>),
+                1 => typeof(Func<,>),
+                2 => typeof(Func<,,>),
+                3 => typeof(Func<,,,>),
+                4 => typeof(Func<,,,,>),
+                5 => typeof(Func<,,,,,>),
+                6 => typeof(Func<,,,,,,>),
+                7 => typeof(Func<,,,,,,,>),
+                8 => typeof(Func<,,,,,,,,>),
+                9 => typeof(Func<,,,,,,,,,>),
+                10 => typeof(Func<,,,,,,,,,,>),
+                11 => typeof(Func<,,,,,,,,,,,>),
+                12 => typeof(Func<,,,,,,,,,,,,>),
+                13 => typeof(Func<,,,,,,,,,,,,,>),
+                14 => typeof(Func<,,,,,,,,,,,,,,>),
+                15 => typeof(Func<,,,,,,,,,,,,,,,>),
+                16 => typeof(Func<,,,,,,,,,,,,,,,,>)
+            };
         }
     }
 }

@@ -64,6 +64,7 @@ namespace ShowDelegates
             info.IsStatic ? "Static " : "",
             info.IsAbstract ? "Abstract " : "",
             info.IsVirtual ? "Virtual " : "",
+            info?.GetBaseDefinition() != info && (info.GetBaseDefinition().GetCustomAttributes(typeof(SyncMethod), true)?.Any() ?? false) ? "Override " : "",
             info.ReturnType.Name,
             " ",
             info.ToString().Substring(info.ToString().IndexOf(" ")).Replace("FrooxEngine.", ""),
@@ -89,7 +90,7 @@ namespace ShowDelegates
                 List<MethodInfo> list = worker.GetType().GetMethods(bindingAttr).ToList<MethodInfo>();
                 list.AddRange(worker.GetType().BaseType.GetMethods(bindingAttr).ToArray<MethodInfo>());
                 list = (from m in list
-                        where m.GetParameters().Length <= 3 && m.GetCustomAttributes(typeof(SyncMethod), false).Any<object>()
+                        where m.GetParameters().Length <= 3 && m.GetCustomAttributes(typeof(SyncMethod), true).Any<object>()
                         select m).ToList<MethodInfo>();
                 if (list.Count != 0)
                 {
